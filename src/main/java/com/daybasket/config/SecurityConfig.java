@@ -1,17 +1,21 @@
+
 package com.daybasket.config;
 
-import com.daybasket.security.JwtAuthenticationFilter;
 import com.daybasket.security.CustomUserDetailsService;
+import com.daybasket.security.JwtAuthenticationFilter;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import org.springframework.http.HttpMethod;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 
@@ -29,6 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
@@ -45,11 +50,13 @@ public class SecurityConfig {
         this.userDetailsService = userDetailsService;
     }
 
+    // Password encryption
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
+    // Authentication provider
     @Bean
     public AuthenticationProvider authenticationProvider() {
 
@@ -61,35 +68,68 @@ public class SecurityConfig {
         return provider;
     }
 
+    // Authentication manager
     @Bean
     public AuthenticationManager authenticationManager() {
         return new ProviderManager(authenticationProvider());
     }
 
+    // Main security configuration
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http)
-            throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http) throws Exception {
 
         http
+            // CORS
             .cors(cors ->
                 cors.configurationSource(corsConfigurationSource())
             )
+
+            // Disable CSRF for stateless REST API
             .csrf(csrf -> csrf.disable())
 
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            // JWT stateless session
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(
+                    SessionCreationPolicy.STATELESS
+                )
             )
 
+            // Authentication provider
             .authenticationProvider(authenticationProvider())
 
+            // Authorization rules
             .authorizeHttpRequests(auth -> auth
+
+                // Allow CORS preflight requests
+                .requestMatchers(HttpMethod.OPTIONS, "/**")
+                .permitAll()
+
+                // Authentication endpoints
                 .requestMatchers(
                     "/api/auth/**",
                     "/actuator/health"
                 ).permitAll()
+
+                // Public category browsing
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/categories",
+                    "/api/categories/**"
+                ).permitAll()
+
+                // Public product browsing
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/products",
+                    "/api/products/**"
+                ).permitAll()
+
+                // Everything else requires authentication
                 .anyRequest().authenticated()
             )
 
+            // JWT authentication filter
             .addFilterBefore(
                 jwtFilter,
                 UsernamePasswordAuthenticationFilter.class
@@ -98,10 +138,12 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // CORS configuration
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
-        CorsConfiguration configuration = new CorsConfiguration();
+        CorsConfiguration configuration =
+                new CorsConfiguration();
 
         List<String> origins = Arrays.stream(
                 allowedOrigins.split(",")
@@ -113,12 +155,22 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(origins);
 
         configuration.setAllowedMethods(List.of(
-            "GET", "POST", "PUT", "PATCH",
-            "DELETE", "OPTIONS"
+            "GET",
+            "POST",
+            "PUT",
+            "PATCH",
+            "DELETE",
+            "OPTIONS"
         ));
 
         configuration.setAllowedHeaders(List.of(
-            "Authorization", "Content-Type"
+            "Authorization",
+            "Content-Type",
+            "Accept"
+        ));
+
+        configuration.setExposedHeaders(List.of(
+            "Authorization"
         ));
 
         configuration.setAllowCredentials(true);
@@ -126,7 +178,10 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration(
+            "/**",
+            configuration
+        );
 
         return source;
     }

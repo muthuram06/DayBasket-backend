@@ -15,12 +15,15 @@ import com.daybasket.repository.CustomerRepository;
 
 import com.daybasket.security.JwtService;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Locale;
@@ -52,23 +55,32 @@ public class AuthService {
         this.jwtService = jwtService;
     }
 
+    // ==========================================
+    // CUSTOMER REGISTRATION
+    // ==========================================
+
     @Transactional
     public AuthResponse register(RegisterRequest request) {
 
-        String email = request.email().trim().toLowerCase(Locale.ROOT);
+        String email = request.email()
+                .trim()
+                .toLowerCase(Locale.ROOT);
 
         if (userRepository.existsByEmail(email)) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
                     "Email is already registered"
             );
         }
 
         String phone = request.phone() == null ||
                 request.phone().isBlank()
-                ? null : request.phone().trim();
+                ? null
+                : request.phone().trim();
 
         if (phone != null && userRepository.existsByPhone(phone)) {
-            throw new IllegalArgumentException(
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
                     "Phone number is already registered"
             );
         }
@@ -85,9 +97,11 @@ public class AuthService {
         user.setFullName(request.fullName().trim());
         user.setEmail(email);
         user.setPhone(phone);
+
         user.setPasswordHash(
                 passwordEncoder.encode(request.password())
         );
+
         user.setRole(customerRole);
         user.setIsActive(true);
         user.setCreatedAt(now);
@@ -117,21 +131,36 @@ public class AuthService {
         );
     }
 
+    // ==========================================
+    // CUSTOMER LOGIN
+    // ==========================================
+
     public AuthResponse login(LoginRequest request) {
 
         String email = request.email()
                 .trim()
                 .toLowerCase(Locale.ROOT);
 
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        email,
-                        request.password()
-                )
-        );
+        try {
+
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            email,
+                            request.password()
+                    )
+            );
+
+        } catch (AuthenticationException ex) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid email or password"
+            );
+        }
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.UNAUTHORIZED,
                         "Invalid email or password"
                 ));
 

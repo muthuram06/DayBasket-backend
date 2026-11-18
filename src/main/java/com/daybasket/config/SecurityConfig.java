@@ -1,9 +1,9 @@
-
 package com.daybasket.config;
 
 import com.daybasket.security.JwtAuthenticationFilter;
 import com.daybasket.security.CustomUserDetailsService;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -25,6 +25,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -32,6 +33,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtFilter;
     private final CustomUserDetailsService userDetailsService;
+
+    @Value("${app.cors.allowed-origins:http://localhost:5173}")
+    private String allowedOrigins;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtFilter,
@@ -67,7 +71,9 @@ public class SecurityConfig {
             throws Exception {
 
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .cors(cors ->
+                cors.configurationSource(corsConfigurationSource())
+            )
             .csrf(csrf -> csrf.disable())
 
             .sessionManagement(session -> session
@@ -97,12 +103,18 @@ public class SecurityConfig {
 
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(List.of(
-            "http://localhost:5173"
-        ));
+        List<String> origins = Arrays.stream(
+                allowedOrigins.split(",")
+            )
+            .map(String::trim)
+            .filter(origin -> !origin.isEmpty())
+            .toList();
+
+        configuration.setAllowedOrigins(origins);
 
         configuration.setAllowedMethods(List.of(
-            "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+            "GET", "POST", "PUT", "PATCH",
+            "DELETE", "OPTIONS"
         ));
 
         configuration.setAllowedHeaders(List.of(

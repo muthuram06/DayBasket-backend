@@ -135,6 +135,7 @@ public class AuthService {
     // CUSTOMER LOGIN
     // ==========================================
 
+    @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
 
         String email = request.email()
@@ -164,6 +165,7 @@ public class AuthService {
                         "Invalid email or password"
                 ));
 
+        // Role is now accessible within the active transaction
         String role = user.getRole().getName();
 
         String token = jwtService.generateToken(email, role);

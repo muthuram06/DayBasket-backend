@@ -58,26 +58,31 @@ public class SecurityConfig {
 
     // Authentication provider
     @Bean
-    public AuthenticationProvider authenticationProvider() {
+    public AuthenticationProvider authenticationProvider(
+            PasswordEncoder passwordEncoder) {
 
         DaoAuthenticationProvider provider =
                 new DaoAuthenticationProvider(userDetailsService);
 
-        provider.setPasswordEncoder(passwordEncoder());
+        provider.setPasswordEncoder(passwordEncoder);
 
         return provider;
     }
 
     // Authentication manager
     @Bean
-    public AuthenticationManager authenticationManager() {
-        return new ProviderManager(authenticationProvider());
+    public AuthenticationManager authenticationManager(
+            AuthenticationProvider authenticationProvider) {
+
+        return new ProviderManager(authenticationProvider);
     }
 
     // Main security configuration
     @Bean
     public SecurityFilterChain securityFilterChain(
-            HttpSecurity http) throws Exception {
+            HttpSecurity http,
+            AuthenticationProvider authenticationProvider)
+            throws Exception {
 
         http
             // CORS
@@ -96,7 +101,7 @@ public class SecurityConfig {
             )
 
             // Authentication provider
-            .authenticationProvider(authenticationProvider())
+            .authenticationProvider(authenticationProvider)
 
             // Authorization rules
             .authorizeHttpRequests(auth -> auth
@@ -105,11 +110,18 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.OPTIONS, "/**")
                 .permitAll()
 
-                // Authentication endpoints
+                // Public authentication and error endpoints
                 .requestMatchers(
                     "/api/auth/**",
-                    "/actuator/health"
+                    "/actuator/health",
+                    "/error"
                 ).permitAll()
+
+                // ADMIN-only endpoints
+                .requestMatchers(
+                    "/api/admin",
+                    "/api/admin/**"
+                ).hasRole("ADMIN")
 
                 // Public category browsing
                 .requestMatchers(
@@ -125,7 +137,7 @@ public class SecurityConfig {
                     "/api/products/**"
                 ).permitAll()
 
-                // Everything else requires authentication
+                // All remaining endpoints require authentication
                 .anyRequest().authenticated()
             )
 

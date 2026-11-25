@@ -1,4 +1,3 @@
-
 package com.daybasket.config;
 
 import com.daybasket.security.CustomUserDetailsService;
@@ -9,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
@@ -23,6 +23,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import org.springframework.web.cors.CorsConfiguration;
@@ -85,7 +86,7 @@ public class SecurityConfig {
             throws Exception {
 
         http
-            // CORS
+            // Configure CORS
             .cors(cors ->
                 cors.configurationSource(corsConfigurationSource())
             )
@@ -93,17 +94,24 @@ public class SecurityConfig {
             // Disable CSRF for stateless REST API
             .csrf(csrf -> csrf.disable())
 
-            // JWT stateless session
+            // Use stateless JWT authentication
             .sessionManagement(session ->
                 session.sessionCreationPolicy(
                     SessionCreationPolicy.STATELESS
                 )
             )
 
-            // Authentication provider
+            // Register authentication provider
             .authenticationProvider(authenticationProvider)
 
-            // Authorization rules
+            // Return 401 when authentication is missing or invalid
+            .exceptionHandling(exception ->
+                exception.authenticationEntryPoint(
+                    new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)
+                )
+            )
+
+            // Configure endpoint authorization
             .authorizeHttpRequests(auth -> auth
 
                 // Allow CORS preflight requests
@@ -141,7 +149,7 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
 
-            // JWT authentication filter
+            // Register JWT filter before username/password authentication
             .addFilterBefore(
                 jwtFilter,
                 UsernamePasswordAuthenticationFilter.class

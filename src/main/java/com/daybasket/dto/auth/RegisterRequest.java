@@ -1,4 +1,3 @@
-
 package com.daybasket.dto.auth;
 
 import jakarta.validation.constraints.Email;

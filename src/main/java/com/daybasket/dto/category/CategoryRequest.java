@@ -1,4 +1,3 @@
-
 package com.daybasket.dto.category;
 
 public record CategoryRequest(

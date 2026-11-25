@@ -1,4 +1,3 @@
-
 package com.daybasket.config;
 
 import com.daybasket.entity.Role;

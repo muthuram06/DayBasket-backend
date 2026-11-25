@@ -1,4 +1,3 @@
-
 package com.daybasket.dto.auth;
 
 public record AuthResponse(

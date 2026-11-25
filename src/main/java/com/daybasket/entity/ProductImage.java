@@ -1,4 +1,3 @@
-
 package com.daybasket.entity;
 
 import jakarta.persistence.*;
